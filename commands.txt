@@ -1,0 +1,11 @@
+ cd /opt/splunk/bin
+sudo ./splunk start --accept-license
+sudo ./splunk start
+sudo ./splunk stop
+
+
+cd ~/Dev/BOTSv3-Incident-Analysis
+
+git add .
+git commit -m "Example"
+git push
