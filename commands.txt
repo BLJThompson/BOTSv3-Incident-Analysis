@@ -1,13 +1,19 @@
- cd /opt/splunk/bin
+# To open splunk
+
+cd /opt/splunk/bin
 sudo ./splunk start --accept-license
 sudo ./splunk start
 sudo ./splunk stop
 
 
+# To open the project location and edit the README file
 cd ~/Dev/BOTSv3-Incident-Analysis
+code README.md
 
+
+# To commit to github
 git add .
 git commit -m "Example"
 git push
 
-test
+
