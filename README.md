@@ -1,1 +1,6 @@
 # BOTSv3 Incident Analysis
+Introduction 
+
+Security Operations Centre (SOC) serves as the critical defence mechanism for enterprise resilience (Vielberth et al., 2020) which provide the central capability for monitoring, detecting, and responding to cyber threats across an organisation’s infrastructure. They collect telemetry from networks, endpoints, and cloud services into a Security Information and Event Management (SIEM) platform such as Splunk, enabling analysts to triage alerts, investigate suspicious activity, and coordinate incident response in a repeatable way. This report presents a forensic analysis of a simulated security incident at Frothly Corporation, a fictitious brewing company, utilising the Boss of the SOC version 3 (BOTSv3) dataset. The scenario simulates a sophisticated attack by the Taedonggang APT group against Frothly’s hybrid infrastructure, which spans on-premise endpoints and Amazon Web Services (AWS) (Splunk, 2020). Effective SOC operation is typically framed by lifecycle models such as incident response and the cyber kill chain, which emphasise preparation, detection, containment, and recovery. This complex environment reflects the modern challenge of maintaining visibility across fragmented attack surfaces (Cloud Security Alliance, 2021).
+
+(add Picture here of cyber incident response cycle) 
