@@ -15,8 +15,11 @@ The primary aim is to demonstrate mastery of the investigative workflow within S
     
 1.4 Scope and Assumptions
 Defining forensic boundaries is critical to prevent scope creep.
+    
     • Operational Scope: Analysis is strictly confined to the AWS and Endpoint sourcetypes within the local BOTSv3 (v3.0) deployment.
+    
     • Role Definition: The report assumes the persona of a Tier 2 Incident Responder performing deep-dive correlation rather than initial triage.
+    
     • Assumptions: The dataset is treated as a faithful, immutable representation of the incident. Remediation steps are theoretical recommendations based on an "Assumed Breach" mindset (SANS Institute, 2023).
     
 2. SOC Roles & Incident Handling Reflection
