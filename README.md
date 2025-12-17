@@ -39,3 +39,38 @@ The investigation follows the NIST SP 800-61 Rev. 2 lifecycle, mapping the BOTSv
 
 2.3 Strategic Insight
 Critically, BOTSv3 illustrates that Identity is the new perimeter. Traditional network controls (firewalls) offered no visibility into the S3 configuration changes (Cloud Security Alliance, 2021). Consequently, modern incident handling must prioritise identity telemetry (aws:iam) alongside traditional endpoint monitoring to close the visibility gap.
+
+3. Installation & Data Preparation
+This section establishes the technical foundation for the investigation by describing Splunk installation and dataset onboarding steps in a manner that supports repeatability, traceability, and data confidence in a SOC context. The setup is deemed successful once Splunk is reachable via the web interface and operates reliably after reboot.
+
+3.1 Deployment architecture and environment baseline
+Splunk Enterprise was deployed as a single-node instance on a local Ubuntu workstation (KDE Plasma desktop environment) to prioritise repeatability, straightforward troubleshooting, and controlled dataset onboarding for SOC-style investigation. The trade-off versus a production SOC architecture is the absence of enterprise characteristics such as separated roles (dedicated indexers/search heads), horizontal scaling, and high availability.
+The host baseline was recorded to support reproducibility and capacity awareness during ingestion and indexing.
+    • Host type: Local workstation (hostname: benjamin-thompson-DefianceX-15)
+    • Operating system: Ubuntu 24.04.3 LTS (Release 24.04, Codename noble)
+    • Kernel: Linux 6.14.0-37-generic (x86_64)
+    • CPU: 12th Gen Intel® Core™ i7-12700H, 20 logical CPUs (x86_64)
+    • Memory: 32 GB RAM
+    • Storage devices and mount points (summary):
+        ◦ nvme1n1 1.8 TB (root filesystem mounted on nvme1n1p3 at /)
+        ◦ nvme0n1 238.5 GB (mounted at /media/benjamin-thompson/New Volume)
+    • Splunk installation and data location: Splunk was installed under /opt/splunk. BOTSv3 indexes were stored on local disk within Splunk’s indexing storage (default path typically under /opt/splunk/var/lib/splunk.
+    • Splunk version: Splunk 10.0.2 (build e2d18b4767e9)
+This deployment mirrors a SOC “lab” approach: an isolated analysis environment with controlled access, local evidence handling, and reproducible configuration. Recording OS/kernel, compute capacity, storage layout, Splunk version, and access boundaries supports defensible reporting by demonstrating that data ingestion and validation were performed under a known, repeatable system baseline.
+
+3.3 BOTSv3 dataset acquisition and integrity handling
+The BOTSv3 dataset was obtained from GitHub using the “botsv3” repository the download was verified by confirming the archive size, validating successful extraction without errors, and checking that the extracted directory structure contained the expected files prior to ingestion. 
+[Evidence fig]
+
+3.4 Dataset ingestion workflow (main part)
+BOTSv3 was acquired as an archive, extracted locally, and the extracted dataset directories were then copied onto the Splunk host for ingestion. Data onboarding was performed from local disk to maintain a controlled and repeatable ingestion path and to avoid reliance on network-based transfers during indexing. The dataset was validated through searching for the index on the search screen.
+[Fig]
+
+3.5 Validation and quality checks
+To confirm that BOTSv3 was ingested correctly and is suitable for SOC-style investigation, a short set of onboarding QA checks was performed. These checks focus on index presence, volume, coverage.
+[Fig]
+[Fig]
+In a SOC context, validation acts as data onboarding QA: analysts must be confident that telemetry is complete, time-aligned, and correctly parsed before attempting detection or root-cause investigation. These checks provide a defensible basis for later findings by demonstrating that the dataset was indexed into the correct location, exhibits broad source coverage, spans an appropriate timeframe, and contains the core fields required for investigative pivoting.
+
+3.6 Design choices in SOC infrastructure context
+A single-node Splunk deployment was considered acceptable for this scenario because the work was performed in a controlled, local lab environment with a bounded investigation dataset and a requirement for repeatable, auditable setup steps. Compared with a production SOC architecture, this design does not provide horizontal scalability, high availability, or role separation (e.g., dedicated indexers and search heads), and therefore would not be suitable for enterprise-wide continuous monitoring. Risk within scope was mitigated by establishing a clear host baseline (OS/kernel, CPU, memory, and storage capacity), restricting exposure to local administration, and applying validation gates (index presence, sourcetype coverage, time-range checks, and field spot-checks) to ensure the telemetry was trustworthy prior to investigation.
