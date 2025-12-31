@@ -74,3 +74,15 @@ In a SOC context, validation acts as data onboarding QA: analysts must be confid
 
 3.6 Design choices in SOC infrastructure context
 A single-node Splunk deployment was considered acceptable for this scenario because the work was performed in a controlled, local lab environment with a bounded investigation dataset and a requirement for repeatable, auditable setup steps. Compared with a production SOC architecture, this design does not provide horizontal scalability, high availability, or role separation (e.g., dedicated indexers and search heads), and therefore would not be suitable for enterprise-wide continuous monitoring. Risk within scope was mitigated by establishing a clear host baseline (OS/kernel, CPU, memory, and storage capacity), restricting exposure to local administration, and applying validation gates (index presence, sourcetype coverage, time-range checks, and field spot-checks) to ensure the telemetry was trustworthy prior to investigation.
+
+Question 1: Identification of IAM Principals
+To identify the IAM principals accessing AWS services, I first validated the log source availability using a metadata search,”| metadata type=sourcetypes index=botsv3 | stats values(sourcetype)” confirming aws:cloudtrail as the authoritative source for API activity (Figure A). 
+I then performed a targeted field analysis with:
+index=botsv3 sourcetype=aws:cloudtrail | fields user* | head 10000
+which confirmed that userIdentity.type='IAMUser' distinguishes human users from roles (Figure B).
+Finally, I executed the aggregation query below to generate the definitive user list (Figure C):
+index=botsv3 sourcetype=aws:cloudtrail "userIdentity.type"=IAMUser
+| stats count by userIdentity.userName
+This revealed the IAMUsers:bstoll,btun,splunk_access,web_admin
+To transition these findings into an operational monitoring tool, I built a custom dashboard (Figure E) which revealed a critical anomaly: user btun accessed AWS from 10 distinct IP addresses despite low overall activity. In a SOC, this specific behaviour triggers a high-priority threat hunt. The analyst must validate if these IPs represent "impossible travel" or known exit nodes; if confirmed, immediate containment (key disablement) is required to stop potential credential reuse. Additionally, the dashboard highlights the generic web_admin account. This represents a significant risk as it lacks non-repudiation; it should be deprecated in favour of named accounts to ensure accountability.
+
