@@ -1,27 +1,13 @@
 1. Introduction
+
 1.1 Context and Operational Environment
-   
-The Security Operations Centre (SOC) serves as the critical defence mechanism for enterprise resilience, providing the central capability for monitoring, detecting, and responding to cyber threats (Vielberth et al., 2020). By aggregating telemetry from networks, endpoints, and cloud services into SIEM platforms like Splunk, SOCs enable analysts to coordinate incident response in a repeatable manner. This report presents a forensic analysis of a simulated security incident at Frothly Corporation using the Boss of the SOC (BOTSv3) dataset. The scenario simulates a sophisticated attack by the Taedonggang APT group against a hybrid infrastructure (AWS and on-premise), reflecting the modern challenge of maintaining visibility across fragmented attack surfaces (Cloud Security Alliance, 2021). Effective operation is framed by lifecycle models emphasising preparation, detection, and recovery.
+The Security Operations Centre (SOC) acts as the central hub for enterprise resilience, responsible for monitoring, detecting, and responding to cyber threats (Vielberth et al., 2020). This report documents a forensic investigation into a security incident at Frothly Corporation, using the Boss of the SOC (BOTSv3) dataset. The scenario involves a sophisticated attack on a hybrid infrastructure, mirroring the real-world difficulty of maintaining visibility across fragmented cloud environments (Cloud Security Alliance, 2021).
 
 1.2 The BOTSv3 Exercise
-The BOTSv3 dataset serves as the operational substrate for this investigation, providing a high-fidelity emulation of a modern breach. Unlike static examples, BOTSv3 aggregates real-world telemetry, including AWS CloudTrail, Sysmon, and WinHostMon,to replicate the "fog of war" inherent in live operations (Splunk, 2020). This environment compels the analyst to apply rigorous detection engineering, distinguishing legitimate administrative behaviour from adversarial Tactics, Techniques, and Procedures (TTPs). By forcing the correlation of cloud API events with endpoint process execution, the exercise accurately simulates the cognitive load required in a live Tier 2 SOC role.
+This investigation relies on the BOTSv3 dataset, which uses high-fidelity telemetry—such as AWS CloudTrail and WinHostMon—to replicate the complexity of live operations (Splunk, 2020). Unlike static training data, this environment requires the analyst to distinguish between standard administrative tasks and adversarial Tactics, Techniques, and Procedures (TTPs). This approach simulates the actual analytical work required of a Tier 2 SOC role, where context is just as important as the logs themselves.
 
-1.3 Objectives
-The primary aim is to demonstrate mastery of the investigative workflow within Splunk, moving beyond alert validation to root cause analysis. The investigation is driven by four core objectives:
-    
-    • Forensic Reconstruction: Accurately answering the AWS-focused 200-level questions using advanced Splunk Search Processing Language (SPL) to extract high-fidelity Indicators of Compromise (IoCs).
-    • Framework Application: Rigorously applying the MITRE ATT&CK Cloud matrix (e.g., T1078, T1098) and NIST SP 800-61 lifecycle to structure the narrative (The MITRE Corporation, 2024; Cichonski et al., 2012).
-    • Evidence Synthesis: Substantiating findings with precise JSON field extractions to maintain a theoretical chain of custody.
-    • Strategic Application: Formulating professional recommendations regarding the failure of identity-based perimeters (IAM) and egress filtering.
-    
-1.4 Scope and Assumptions
-Defining forensic boundaries is critical to prevent scope creep.
-    
-    • Operational Scope: Analysis is strictly confined to the AWS and Endpoint sourcetypes within the local BOTSv3 (v3.0) deployment.
-    
-    • Role Definition: The report assumes the persona of a Tier 2 Incident Responder performing deep-dive correlation rather than initial triage.
-    
-    • Assumptions: The dataset is treated as a faithful, immutable representation of the incident. Remediation steps are theoretical recommendations based on an "Assumed Breach" mindset (SANS Institute, 2023).
+1.3 Objectives and Scope
+The primary goal is to move beyond simple alert validation to full root cause analysis. Key objectives include forensic reconstruction using Splunk Search Processing Language (SPL) and structuring the narrative around the NIST Incident Response lifecycle (Cichonski et al., 2012). The scope is limited to AWS and Endpoint sourcetypes within the BOTSv3 deployment. Written from the perspective of a Tier 2 Incident Responder, the report offers remediation recommendations based on an "Assumed Breach" mindset (SANS Institute, 2023).
     
 2. SOC Roles & Incident Handling Reflection
 2.1 Critical Evaluation of SOC Tiers
