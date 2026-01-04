@@ -75,14 +75,29 @@ In a SOC context, validation acts as data onboarding QA: analysts must be confid
 3.6 Design choices in SOC infrastructure context
 A single-node Splunk deployment was considered acceptable for this scenario because the work was performed in a controlled, local lab environment with a bounded investigation dataset and a requirement for repeatable, auditable setup steps. Compared with a production SOC architecture, this design does not provide horizontal scalability, high availability, or role separation (e.g., dedicated indexers and search heads), and therefore would not be suitable for enterprise-wide continuous monitoring. Risk within scope was mitigated by establishing a clear host baseline (OS/kernel, CPU, memory, and storage capacity), restricting exposure to local administration, and applying validation gates (index presence, sourcetype coverage, time-range checks, and field spot-checks) to ensure the telemetry was trustworthy prior to investigation.
 
-Question 1: Identification of IAM Principals
-To identify the IAM principals accessing AWS services, I first validated the log source availability using a metadata search,”| metadata type=sourcetypes index=botsv3 | stats values(sourcetype)” confirming aws:cloudtrail as the authoritative source for API activity (Figure A). 
-I then performed a targeted field analysis with:
-index=botsv3 sourcetype=aws:cloudtrail | fields user* | head 10000
-which confirmed that userIdentity.type='IAMUser' distinguishes human users from roles (Figure B).
-Finally, I executed the aggregation query below to generate the definitive user list (Figure C):
-index=botsv3 sourcetype=aws:cloudtrail "userIdentity.type"=IAMUser
-| stats count by userIdentity.userName
-This revealed the IAMUsers:bstoll,btun,splunk_access,web_admin
-To transition these findings into an operational monitoring tool, I built a custom dashboard (Figure E) which revealed a critical anomaly: user btun accessed AWS from 10 distinct IP addresses despite low overall activity. In a SOC, this specific behaviour triggers a high-priority threat hunt. The analyst must validate if these IPs represent "impossible travel" or known exit nodes; if confirmed, immediate containment (key disablement) is required to stop potential credential reuse. Additionally, the dashboard highlights the generic web_admin account. This represents a significant risk as it lacks non-repudiation; it should be deprecated in favour of named accounts to ensure accountability.
+Q1 - Identification of IAM Users
+The objective of identifying the IAM (Identity & Access Management) users that accessed the AWS services within Frothly’s environment, using Splunk to interrogate the BOTSv3 dataset. As CloudTrail provides authoritative audit records of AWS control-plane and data-plane API activity. I I first confirmed the CloudTrail telemetry was present by using a Metadata search within the dataset sourcetypes (| metadata type=sourcetypes index=botsv3 | stats values(sourcetype)).
+
+(Figure A)
+
+Inspecting user-related fields within CloudTrail events (index=botsv3 sourcetype=aws:cloudtrail | fields user* | head 10000) to establish the correct field for human IAM users onfirming that userIdentity.type="IAMUser" distinguishes named IAM principals from other identity categories such as assumed roles or service principals.
+
+(Figure B)
+
+On this basis, I executed the final aggregation query below to derive the definitive IAM user list:
+
+   index=botsv3 sourcetype=aws:cloudtrail "userIdentity.type"=IAMUser
+   | stats count by userIdentity.userName
+   
+(Figure C)
+
+The results indicate that the IAM users who accessed AWS services (successfully or unsuccessfully) are bstoll,btun,splunk_access,web_admin
+
+(Figure D)
+
+These IAM users were also put into a dashboard so future actions can be monitored seen below:
+
+(Figure E)
+
+From a Security Operations Centre (SOC) perspective, an IAM identity baseline is a vital detection tool that supports both Tier 1 and Tier 2 workflows. Tier 1 analysts rely on this baseline to flag clear anomalies, such as a user connecting from a suspiciously high number of unique IP addresses. Tier 2 analysts then handle the investigation, filtering out false positives (like corporate VPNs) to determine if credentials have actually been compromised. If the activity cannot be verified, the standard response protocol is to escalate to cloud administrators to immediately disable the access keys. Beyond the immediate threat, finding shared accounts like web_admin reveals a gap in governance. To restore accountability, Security Engineering must replace these generic logins with named accounts and enforce Multi-Factor Authentication (MFA) to prevent this issue from recurring.
 
