@@ -1,9 +1,0 @@
-## AI Usage Declaration
-
-The following tasks in this project were supported by Artificial Intelligence (Google Gemini):
-
-* **Technical Troubleshooting:** Assistance with diagnosing and resolving GitHub authentication errors (transitioning from password authentication to Personal Access Tokens).
-* **Version Control Guidance:** Providing command-line instructions for initializing the Git repository, configuring remote origins, and managing branch settings.
-* **Workflow Explanation:** Explaining the standard Git lifecycle (staging, committing, and pushing) and credential management techniques.
-* **File Management:** Guidance on adding directories, handling empty folders with `.gitkeep`, and using terminal-based text editors.
-* **Formatting Assistance:** Generating Markdown syntax examples for documenting the report (headers, code blocks, and lists).
