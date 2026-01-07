@@ -1,9 +1,9 @@
 # To open splunk
 
 cd /opt/splunk/bin
-sudo ./splunk start --accept-license
-sudo ./splunk start
-sudo ./splunk stop
+./splunk start --accept-license
+./splunk start
+./splunk stop
 
 
 # To open the project location and edit the README file
