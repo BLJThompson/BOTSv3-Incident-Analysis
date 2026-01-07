@@ -55,62 +55,81 @@ Data was sent to a dedicated `botsv3` index instead of the main index. This segm
 ![Data Validation](evidence/Installation%20and%20Dashboard%20Setup/figure4.png)
 *Figure 4: Validating event count (1,944,092) in the botsv3 index.*
 
-3. Installation & Data Preparation
-This section establishes the technical foundation for the investigation by describing Splunk installation and dataset onboarding steps in a manner that supports repeatability, traceability, and data confidence in a SOC context. The setup is deemed successful once Splunk is reachable via the web interface and operates reliably after reboot.
+## 4.0 Analytical Methodology
+To reconstruct the incident effectively, the investigation used a hypothesis-driven approach on the `botsv3` dataset (Lee and Bianco, 2016). A **"Funnel of Fidelity"** method managed alert volume: starting with broad searches across key sourcetypes (`aws:cloudtrail`, `winhostmon`) to establish a baseline, then filtering by high-fidelity indicators like specific Event IDs and User Agents to isolate the attack vector (Atkinson, 2019).
 
-3.1 Deployment architecture and environment baseline
-Splunk Enterprise was deployed as a single-node instance on a local Ubuntu workstation (KDE Plasma desktop environment) to prioritise repeatability, straightforward troubleshooting, and controlled dataset onboarding for SOC-style investigation. The trade-off versus a production SOC architecture is the absence of enterprise characteristics such as separated roles (dedicated indexers/search heads), horizontal scaling, and high availability.
-The host baseline was recorded to support reproducibility and capacity awareness during ingestion and indexing.
-    • Host type: Local workstation (hostname: benjamin-thompson-DefianceX-15)
-    • Operating system: Ubuntu 24.04.3 LTS (Release 24.04, Codename noble)
-    • Kernel: Linux 6.14.0-37-generic (x86_64)
-    • CPU: 12th Gen Intel® Core™ i7-12700H, 20 logical CPUs (x86_64)
-    • Memory: 32 GB RAM
-    • Storage devices and mount points (summary):
-        ◦ nvme1n1 1.8 TB (root filesystem mounted on nvme1n1p3 at /)
-        ◦ nvme0n1 238.5 GB (mounted at /media/benjamin-thompson/New Volume)
-    • Splunk installation and data location: Splunk was installed under /opt/splunk. BOTSv3 indexes were stored on local disk within Splunk’s indexing storage (default path typically under /opt/splunk/var/lib/splunk.
-    • Splunk version: Splunk 10.0.2 (build e2d18b4767e9)
-This deployment mirrors a SOC “lab” approach: an isolated analysis environment with controlled access, local evidence handling, and reproducible configuration. Recording OS/kernel, compute capacity, storage layout, Splunk version, and access boundaries supports defensible reporting by demonstrating that data ingestion and validation were performed under a known, repeatable system baseline.
 
-3.3 BOTSv3 dataset acquisition and integrity handling
-The BOTSv3 dataset was obtained from GitHub using the “botsv3” repository the download was verified by confirming the archive size, validating successful extraction without errors, and checking that the extracted directory structure contained the expected files prior to ingestion. 
-[Evidence fig]
+### 4.1 Question 1: Identification of IAM Users
+Identify IAM users accessing AWS in Frothly. CloudTrail gives audit logs of control-plane activity. The investigation confirmed CloudTrail telemetry presence via metadata search. `(| metadata type=sourcetypes index=botsv3 | stats values(sourcetype))`.
 
-3.4 Dataset ingestion workflow (main part)
-BOTSv3 was acquired as an archive, extracted locally, and the extracted dataset directories were then copied onto the Splunk host for ingestion. Data onboarding was performed from local disk to maintain a controlled and repeatable ingestion path and to avoid reliance on network-based transfers during indexing. The dataset was validated through searching for the index on the search screen.
-[Fig]
+![Metadata Search](evidence/Q1/figure5.png)
+*Figure 5: Confirming CloudTrail telemetry.*
 
-3.5 Validation and quality checks
-To confirm that BOTSv3 was ingested correctly and is suitable for SOC-style investigation, a short set of onboarding QA checks was performed. These checks focus on index presence, volume, coverage.
-[Fig]
-[Fig]
-In a SOC context, validation acts as data onboarding QA: analysts must be confident that telemetry is complete, time-aligned, and correctly parsed before attempting detection or root-cause investigation. These checks provide a defensible basis for later findings by demonstrating that the dataset was indexed into the correct location, exhibits broad source coverage, spans an appropriate timeframe, and contains the core fields required for investigative pivoting.
+Inspecting user-related fields within the `aws:cloudtrail` sourcetype confirmed that the field `userIdentity.type="IAMUser"` reliably distinguishes named IAM principals from other identity categories such as assumed roles.
 
-3.6 Design choices in SOC infrastructure context
-A single-node Splunk deployment was considered acceptable for this scenario because the work was performed in a controlled, local lab environment with a bounded investigation dataset and a requirement for repeatable, auditable setup steps. Compared with a production SOC architecture, this design does not provide horizontal scalability, high availability, or role separation (e.g., dedicated indexers and search heads), and therefore would not be suitable for enterprise-wide continuous monitoring. Risk within scope was mitigated by establishing a clear host baseline (OS/kernel, CPU, memory, and storage capacity), restricting exposure to local administration, and applying validation gates (index presence, sourcetype coverage, time-range checks, and field spot-checks) to ensure the telemetry was trustworthy prior to investigation.
+![UserIdentity Field](evidence/Q1/figure6.png)
+*Figure 6: Inspecting user identity types.*
 
-Q1 - Identification of IAM Users
-The objective of identifying the IAM (Identity & Access Management) users that accessed the AWS services within Frothly’s environment, using Splunk to interrogate the BOTSv3 dataset. As CloudTrail provides authoritative audit records of AWS control-plane and data-plane API activity. I I first confirmed the CloudTrail telemetry was present by using a Metadata search within the dataset sourcetypes (| metadata type=sourcetypes index=botsv3 | stats values(sourcetype)).
+On this basis, the final aggregation query was executed:
 
-(Figure A)
+```splunk
+index=botsv3 sourcetype=aws:cloudtrail "userIdentity.type"=IAMUser
+| stats count by userIdentity.userName
 
-Inspecting user-related fields within CloudTrail events (index=botsv3 sourcetype=aws:cloudtrail | fields user* | head 10000) to establish the correct field for human IAM users onfirming that userIdentity.type="IAMUser" distinguishes named IAM principals from other identity categories such as assumed roles or service principals.
+```
 
-(Figure B)
+The results definitively identified four IAM users: bstoll, btun, splunk_access, and web_admin.
 
-On this basis, I executed the final aggregation query below to derive the definitive IAM user list:
+Figure 7: Table of identified IAM users.
 
-   index=botsv3 sourcetype=aws:cloudtrail "userIdentity.type"=IAMUser
-   | stats count by userIdentity.userName
-   
-(Figure C)
+These IAM users were also added to a dashboard so future actions can be monitored, as shown below.
 
-The results indicate that the IAM users who accessed AWS services (successfully or unsuccessfully) are bstoll,btun,splunk_access,web_admin
+Figure 8: IAM Activity Dashboard.
 
-(Figure D)
+From a SOC perspective, an IAM identity baseline is vital for detection. Tier 1 analysts use it to flag anomalies, like a user connecting from many IPS. If unverified, they escalate to cloud admins to disable access keys. Sharing accounts like web_admin shows governance gaps. Security Engineering should replace generic logins with named accounts and enforce MFA to prevent this.
 
-These IAM users were also put into a dashboard so future actions can be monitored seen below:
+
+
+
+
+
+## 5. Conclusion & Strategic Recommendations
+This investigation shows a significant cloud security breach caused by identity and configuration governance flaws, not a new technical exploit. Analysis of AWS control-plane telemetry (CloudTrail) and endpoint data reveals that IAM principal (`bstoll`) changed S3 ACLs, creating public exposure for web asset buckets. S3 logs confirm Object access during the exposure, including an unauthorised object upload, demonstrating operational impact.
+
+The issue was not a logging failure; events were captured accurately. The flaw was the lack of preventative controls to block risky actions. Additionally, a shared admin account and inconsistent endpoint setup reduce non-repudiation, complicating detection and response.
+
+### Strategic Implications
+Two lessons from this incident:
+1.  **Identity controls are crucial in cloud environments.** Weak MFA and privilege management allow valid credentials to cause damage without perimeter controls.
+2.  **Baseline discipline matters:** configuration drift, like different OS editions across devices, is a control gap until verified, as it suggests uneven security and monitoring.
+
+### Recommendations
+To move from reactive detection to resilient prevention, follow these priorities aligned with NIST SP 800-61 recovery and post-incident improvement:
+
+* **Prevent public exposure** by enforcing S3 Block Public Access at the account level and restricting ACLs to avoid accidental exposure.
+* **Enforce MFA with SCPs** to deny sensitive actions like `PutBucketAcl` when MFA isn't used.
+* **Remove shared credentials** (`web_admin`), migrate to named accounts, and implement strict least privilege permissions.
+* **Use automation like SOAR** to detect high-risk S3 permission changes, enabling quick rollback and alerts.
+* **Implement baseline controls** such as Network Access Control and compliance reports to quarantine non-conforming endpoints until fixed.
+
+---
+
+## References
+* Atkinson, J. (2019) *Introducing the Funnel of Fidelity*. Available at: https://posts.specterops.io/introducing-the-funnel-of-fidelity-b1bb59b04036
+* Cichonski, P., Millar, T., Grance, T. and Scarfone, K. (2012) *Computer Security Incident Handling Guide*, NIST Special Publication 800-61 Revision 2. Gaithersburg: National Institute of Standards and Technology.
+* CISA (2020) *Insider Threat Mitigation Guide*. Available at: https://www.cisa.gov/sites/default/files/2022-11/Insider%20Threat%20Mitigation%20Guide_Final_508.pdf
+* Cloud Security Alliance (2021) *Top Threats to Cloud Computing: The Egregious 11*. Seattle: Cloud Security Alliance.
+* ISACA (2019) *COBIT 2019 Framework: Governance and Management Objectives*. Schaumburg, IL: ISACA.
+* Lee, R.M. and Bianco, D. (2016) *Generating Hypotheses for Successful Threat Hunting*. Bethesda: SANS Institute.
+* MITRE Corporation (2025) *Valid Accounts, Technique T1078 - Enterprise | MITRE ATT&CK*. Available at: https://attack.mitre.org/techniques/T1078/
+* Nelson, A., Rekhi, S., Souppaya, M. and Scarfone, K. (2025) *Incident Response Recommendations and Considerations for Cybersecurity Risk Management: A CSF 2.0 Community Profile*, NIST Special Publication 800-61 Revision 3. Gaithersburg: National Institute of Standards and Technology.
+* NIST (2020) *Guidelines for Securing Wireless Local Area Networks (802.1X and NAC)*, SP 800-153. Gaithersburg: National Institute of Standards and Technology.
+* SANS Institute (2023) *SOC Analyst Skills and Careers: A SANS Survey*. Bethesda: SANS Institute.
+* SentinelOne (2025) *Amazon S3 Bucket Security - A Comprehensive Guide 101*. Available at: https://www.sentinelone.com/cybersecurity-101/cybersecurity/s3-bucket-security/
+* Splunk (2020) *Boss of the SOC (BOTS) Version 3 Dataset*. Available at: https://github.com/splunk/botsv3
+* Vielberth, M., Böhm, F., Fichtinger, I. and Pernul, G. (2020) 'Security Operations Center: A Systematic Study and Future Directions', *IEEE Access*, 8, pp. 227756-
+
+
 
 Q1
 
