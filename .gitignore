@@ -1,0 +1,12 @@
+# Draft docs
+*.odt
+*.docx
+*.tmp
+
+# Videos / raw media
+*.mp4
+*.mov
+Videos to edit/
+
+# Personal scratch
+Not important/
