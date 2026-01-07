@@ -1,1 +1,89 @@
-# BOTSv3 Incident Analysis
+1. Introduction
+
+1.1 Context and Operational Environment
+The Security Operations Centre (SOC) acts as the central hub for enterprise resilience, responsible for monitoring, detecting, and responding to cyber threats (Vielberth et al., 2020). This report documents a forensic investigation into a security incident at Frothly Corporation, using the Boss of the SOC (BOTSv3) dataset. The scenario involves a sophisticated attack on a hybrid infrastructure, mirroring the real-world difficulty of maintaining visibility across fragmented cloud environments (Cloud Security Alliance, 2021).
+
+1.2 The BOTSv3 Exercise
+This investigation relies on the BOTSv3 dataset, which uses high-fidelity telemetry—such as AWS CloudTrail and WinHostMon—to replicate the complexity of live operations (Splunk, 2020). Unlike static training data, this environment requires the analyst to distinguish between standard administrative tasks and adversarial Tactics, Techniques, and Procedures (TTPs). This approach simulates the actual analytical work required of a Tier 2 SOC role, where context is just as important as the logs themselves.
+
+1.3 Objectives and Scope
+The primary goal is to move beyond simple alert validation to full root cause analysis. Key objectives include forensic reconstruction using Splunk Search Processing Language (SPL) and structuring the narrative around the NIST Incident Response lifecycle (Cichonski et al., 2012). The scope is limited to AWS and Endpoint sourcetypes within the BOTSv3 deployment. Written from the perspective of a Tier 2 Incident Responder, the report offers remediation recommendations based on an "Assumed Breach" mindset (SANS Institute, 2023).
+    
+2. SOC Roles & Incident Handling Reflection
+2.1 Critical Evaluation of SOC Tiers
+Standard industry models arrange SOC capabilities into tiers to manage alert velocity (Vielberth et al., 2020). Tier 1 (Triage) analysts validate high-volume alerts against playbooks, typically limited to binary "True/False Positive" decisions. In the Frothly scenario, a Tier 1 analyst monitoring AWS CloudTrail might flag a ConsoleLogin event. However, the limitation of this siloed approach becomes evident in BOTSv3: without the Tier 2 (Incident Response) skill set to correlate this cloud event with endpoint telemetry (e.g., WinHostMon), the wider scope of the Taedonggang intrusion,specifically the lateral movement to internal servers,would be missed. This exercise demonstrates that effective hybrid defence requires moving beyond rigid tiers to cross-functional competency, where analysts can pivot between cloud management planes and endpoint forensics (SANS Institute, 2023).
+
+2.2 Application of the Incident Response Lifecycle
+The investigation follows the NIST SP 800-61 Rev. 2 lifecycle, mapping the BOTSv3 workflow to the four key phases (Cichonski et al., 2012):
+    
+    • Prevention: The incident highlights systemic failures in Frothly’s preventative posture. The successful compromise of the IAM user "Bud" and subsequent S3 bucket exposure underscores the critical necessity of enforcing Multi-Factor Authentication (MFA) and strict egress filtering, which were absent.
+    • Detection: This phase constitutes the core investigative effort. Navigating the "fog of war" in Splunk, the analysis required filtering benign administrative noise to identify high-fidelity Indicators of Compromise (IoCs). Success relied on "Detection Engineering",constructing advanced SPL queries to map the adversary's TTPs (e.g., MITRE T1078 Valid Accounts) rather than relying on static signatures (Splunk, 2020).
+    • Response: While the static nature of the dataset precludes active intervention, forensic findings dictate the response strategy. Effective containment would require the immediate revocation of compromised AWS access keys and the network isolation of the crypto-mining endpoint to sever the C2 channel (Shackleford, 2016).
+    • Recovery: The final phase focuses on restoration and hardening. Recommendations include sanitising the public S3 bucket, reimaging affected hosts, and transitioning to an "Identity-Centric" security model.
+
+(add Picture here of cyber incident response cycle) 
+
+2.3 Strategic Insight
+Critically, BOTSv3 illustrates that Identity is the new perimeter. Traditional network controls (firewalls) offered no visibility into the S3 configuration changes (Cloud Security Alliance, 2021). Consequently, modern incident handling must prioritise identity telemetry (aws:iam) alongside traditional endpoint monitoring to close the visibility gap.
+
+3. Installation & Data Preparation
+This section establishes the technical foundation for the investigation by describing Splunk installation and dataset onboarding steps in a manner that supports repeatability, traceability, and data confidence in a SOC context. The setup is deemed successful once Splunk is reachable via the web interface and operates reliably after reboot.
+
+3.1 Deployment architecture and environment baseline
+Splunk Enterprise was deployed as a single-node instance on a local Ubuntu workstation (KDE Plasma desktop environment) to prioritise repeatability, straightforward troubleshooting, and controlled dataset onboarding for SOC-style investigation. The trade-off versus a production SOC architecture is the absence of enterprise characteristics such as separated roles (dedicated indexers/search heads), horizontal scaling, and high availability.
+The host baseline was recorded to support reproducibility and capacity awareness during ingestion and indexing.
+    • Host type: Local workstation (hostname: benjamin-thompson-DefianceX-15)
+    • Operating system: Ubuntu 24.04.3 LTS (Release 24.04, Codename noble)
+    • Kernel: Linux 6.14.0-37-generic (x86_64)
+    • CPU: 12th Gen Intel® Core™ i7-12700H, 20 logical CPUs (x86_64)
+    • Memory: 32 GB RAM
+    • Storage devices and mount points (summary):
+        ◦ nvme1n1 1.8 TB (root filesystem mounted on nvme1n1p3 at /)
+        ◦ nvme0n1 238.5 GB (mounted at /media/benjamin-thompson/New Volume)
+    • Splunk installation and data location: Splunk was installed under /opt/splunk. BOTSv3 indexes were stored on local disk within Splunk’s indexing storage (default path typically under /opt/splunk/var/lib/splunk.
+    • Splunk version: Splunk 10.0.2 (build e2d18b4767e9)
+This deployment mirrors a SOC “lab” approach: an isolated analysis environment with controlled access, local evidence handling, and reproducible configuration. Recording OS/kernel, compute capacity, storage layout, Splunk version, and access boundaries supports defensible reporting by demonstrating that data ingestion and validation were performed under a known, repeatable system baseline.
+
+3.3 BOTSv3 dataset acquisition and integrity handling
+The BOTSv3 dataset was obtained from GitHub using the “botsv3” repository the download was verified by confirming the archive size, validating successful extraction without errors, and checking that the extracted directory structure contained the expected files prior to ingestion. 
+[Evidence fig]
+
+3.4 Dataset ingestion workflow (main part)
+BOTSv3 was acquired as an archive, extracted locally, and the extracted dataset directories were then copied onto the Splunk host for ingestion. Data onboarding was performed from local disk to maintain a controlled and repeatable ingestion path and to avoid reliance on network-based transfers during indexing. The dataset was validated through searching for the index on the search screen.
+[Fig]
+
+3.5 Validation and quality checks
+To confirm that BOTSv3 was ingested correctly and is suitable for SOC-style investigation, a short set of onboarding QA checks was performed. These checks focus on index presence, volume, coverage.
+[Fig]
+[Fig]
+In a SOC context, validation acts as data onboarding QA: analysts must be confident that telemetry is complete, time-aligned, and correctly parsed before attempting detection or root-cause investigation. These checks provide a defensible basis for later findings by demonstrating that the dataset was indexed into the correct location, exhibits broad source coverage, spans an appropriate timeframe, and contains the core fields required for investigative pivoting.
+
+3.6 Design choices in SOC infrastructure context
+A single-node Splunk deployment was considered acceptable for this scenario because the work was performed in a controlled, local lab environment with a bounded investigation dataset and a requirement for repeatable, auditable setup steps. Compared with a production SOC architecture, this design does not provide horizontal scalability, high availability, or role separation (e.g., dedicated indexers and search heads), and therefore would not be suitable for enterprise-wide continuous monitoring. Risk within scope was mitigated by establishing a clear host baseline (OS/kernel, CPU, memory, and storage capacity), restricting exposure to local administration, and applying validation gates (index presence, sourcetype coverage, time-range checks, and field spot-checks) to ensure the telemetry was trustworthy prior to investigation.
+
+Q1 - Identification of IAM Users
+The objective of identifying the IAM (Identity & Access Management) users that accessed the AWS services within Frothly’s environment, using Splunk to interrogate the BOTSv3 dataset. As CloudTrail provides authoritative audit records of AWS control-plane and data-plane API activity. I I first confirmed the CloudTrail telemetry was present by using a Metadata search within the dataset sourcetypes (| metadata type=sourcetypes index=botsv3 | stats values(sourcetype)).
+
+(Figure A)
+
+Inspecting user-related fields within CloudTrail events (index=botsv3 sourcetype=aws:cloudtrail | fields user* | head 10000) to establish the correct field for human IAM users onfirming that userIdentity.type="IAMUser" distinguishes named IAM principals from other identity categories such as assumed roles or service principals.
+
+(Figure B)
+
+On this basis, I executed the final aggregation query below to derive the definitive IAM user list:
+
+   index=botsv3 sourcetype=aws:cloudtrail "userIdentity.type"=IAMUser
+   | stats count by userIdentity.userName
+   
+(Figure C)
+
+The results indicate that the IAM users who accessed AWS services (successfully or unsuccessfully) are bstoll,btun,splunk_access,web_admin
+
+(Figure D)
+
+These IAM users were also put into a dashboard so future actions can be monitored seen below:
+
+(Figure E)
+
+From a Security Operations Centre (SOC) perspective, an IAM identity baseline is a vital detection tool that supports both Tier 1 and Tier 2 workflows. Tier 1 analysts rely on this baseline to flag clear anomalies, such as a user connecting from a suspiciously high number of unique IP addresses. Tier 2 analysts then handle the investigation, filtering out false positives (like corporate VPNs) to determine if credentials have actually been compromised. If the activity cannot be verified, the standard response protocol is to escalate to cloud administrators to immediately disable the access keys. Beyond the immediate threat, finding shared accounts like web_admin reveals a gap in governance. To restore accountability, Security Engineering must replace these generic logins with named accounts and enforce Multi-Factor Authentication (MFA) to prevent this issue from recurring.
+
